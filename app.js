@@ -32,7 +32,8 @@ mongoose.set("useCreateIndex",true);
 const userSchema=new mongoose.Schema({
   email:String,
   password:String,
-  googleId:String
+  googleId:String,
+  secret:String
 });
 userSchema.plugin(passportLocalMongoose);
 userSchema.plugin(findOrCreate);/*
@@ -73,21 +74,14 @@ app.get("/auth/google",passport.authenticate("google",{scope:("profile")})
 );
 app.get("/auth/google/secrets",passport.authenticate("google",{failureRedirect:"/login"}),function(req,res){
   res.redirect("/secrets");
-})
+});
 app.get("/login",function(req,res){
   res.render("login");
 });
 app.get("/register",function(req,res){
   res.render("register");
 });
-app.get("/secrets",function(req,res){
-  if(req.isAuthenticated()){
-    res.render("secrets");
-  }
-  else{
-    res.redirect("/login");
-  }
-});
+
 app.post("/register",function(req,res){
   /*
 bcrypt.hash(req.body.password,saltRounds,function(err,hash){
@@ -160,10 +154,51 @@ app.post("/login",function(req,res){
 app.get("/logout",function(req,res){
   req.logout();
   res.redirect("/");
-})
+});
+app.get("/secrets",function(req,res){
+  User.find({"secret": {$ne:null}},function(err,foundUsers){
+    if(err){
+      console.log(err);
+    }
+    else{
+      if(foundUsers){
+        res.render("secrets",{usersWithSecrets:foundUsers});
+      }
+    }
+  });
+});
 
+app.get("/submit",function(req,res){
+  if(req.isAuthenticated()){
+    res.render("submit");
+  }
+  else{
+    res.redirect("/login");
+  }
+});
+app.post("/submit",function(req,res){
 
+const submittedSecret=req.body.secret;
+console.log(req.user.id);
 
+User.findById(req.user.id,function(err,foundUser1){
+  if(err){
+    console.log(err);
+  }
+  else{
+    if(foundUser1){
+      foundUser1.secret=submittedSecret;
+      foundUser1.save(function(){
+        res.redirect("/secrets");
+      });
+
+    }
+
+  }
+
+});
+
+});
 app.listen(process.env.PORT ||3000,function(){
   console.log("Server is running in port 3000");
 
